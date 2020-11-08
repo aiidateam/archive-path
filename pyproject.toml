@@ -32,7 +32,7 @@ test = [
 dev = ["pre-commit"]
 
 [tool.flit.sdist]
-include = []
+include = ["LICENSE", "README.md", "CHANGELOG.md"]
 exclude = [".github/", "tests/"]
 
 [tool.isort]
