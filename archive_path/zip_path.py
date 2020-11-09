@@ -14,7 +14,7 @@ from contextlib import contextmanager, suppress
 import io
 import itertools
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import posixpath
 import threading
 from types import TracebackType
@@ -410,7 +410,12 @@ class ZipPath:
 
         :param cb_descript: the description to return in the callback
 
+        :raises NotADirectoryError: If the zip path is not a directory
+
         """
+        if not self.is_dir():
+            raise NotADirectoryError(f"Source is not a directory: {self.at}")
+
         outpath = cast(str, os.path.abspath(outpath))
 
         if callback is None:
@@ -419,6 +424,11 @@ class ZipPath:
             callback("init", {"total": 1, "description": "Counting objects to extract"})
             count = sum(1 for _ in self.glob(pattern, include_virtual=False))
             callback("init", {"total": count, "description": cb_descript})
+
+        # always make base directory
+        Path(outpath).joinpath(PurePosixPath(self.at)).mkdir(
+            parents=True, exist_ok=True
+        )
 
         for path in self.glob(pattern, include_virtual=False):
             callback("update", 1)
