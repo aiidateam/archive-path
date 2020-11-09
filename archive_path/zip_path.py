@@ -14,7 +14,7 @@ from contextlib import contextmanager, suppress
 import io
 import itertools
 import os
-from pathlib import Path, PosixPath
+from pathlib import Path, PurePosixPath
 import posixpath
 import threading
 from types import TracebackType
@@ -426,7 +426,9 @@ class ZipPath:
             callback("init", {"total": count, "description": cb_descript})
 
         # always make base directory
-        Path(outpath).joinpath(PosixPath(self.at)).mkdir(parents=True, exist_ok=True)
+        Path(outpath).joinpath(PurePosixPath(self.at)).mkdir(
+            parents=True, exist_ok=True
+        )
 
         for path in self.glob(pattern, include_virtual=False):
             callback("update", 1)
