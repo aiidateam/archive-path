@@ -372,7 +372,7 @@ class TarPath:
                 )
                 self._tarfile.add(str(subpath), tarpath, recursive=False)
 
-    def gettree(
+    def extract_tree(
         self,
         outpath: Union[str, Path],
         *,

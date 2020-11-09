@@ -143,41 +143,41 @@ def test_path(
         "a"
     )
 
-    # test gettree
-    file_read.gettree(tmp_path / "gettree_all")
+    # test extract_tree
+    file_read.extract_tree(tmp_path / "extract_tree_all")
     assert {
         p.as_posix().replace(tmp_path.as_posix(), "")
-        for p in (tmp_path / "gettree_all").glob("**/*")
+        for p in (tmp_path / "extract_tree_all").glob("**/*")
     } == {
-        "/gettree_all/new_file.txt",
-        "/gettree_all/other_folder",
-        "/gettree_all/other_folder/sub_file.txt",
-        "/gettree_all/folder",
-        "/gettree_all/folder/other_file.txt",
-        "/gettree_all/other_folder/nested1",
-        "/gettree_all/bytes.exe",
-        "/gettree_all/other_folder/nested1/nested2",
-        "/gettree_all/bytes2.exe",
-        "/gettree_all/other_folder/sub_folder",
+        "/extract_tree_all/new_file.txt",
+        "/extract_tree_all/other_folder",
+        "/extract_tree_all/other_folder/sub_file.txt",
+        "/extract_tree_all/folder",
+        "/extract_tree_all/folder/other_file.txt",
+        "/extract_tree_all/other_folder/nested1",
+        "/extract_tree_all/bytes.exe",
+        "/extract_tree_all/other_folder/nested1/nested2",
+        "/extract_tree_all/bytes2.exe",
+        "/extract_tree_all/other_folder/sub_folder",
     }
 
-    file_read.joinpath("folder").gettree(tmp_path / "gettree_folder")
+    file_read.joinpath("folder").extract_tree(tmp_path / "extract_tree_folder")
     assert {
         p.as_posix().replace(tmp_path.as_posix(), "")
-        for p in (tmp_path / "gettree_folder").glob("**/*")
+        for p in (tmp_path / "extract_tree_folder").glob("**/*")
     } == {
-        "/gettree_folder/folder",
-        "/gettree_folder/folder/other_file.txt",
+        "/extract_tree_folder/folder",
+        "/extract_tree_folder/folder/other_file.txt",
     }
 
-    file_read.gettree(tmp_path / "gettree_txt", pattern="**/*.txt")
+    file_read.extract_tree(tmp_path / "extract_tree_txt", pattern="**/*.txt")
     assert {
         p.as_posix().replace(tmp_path.as_posix(), "")
-        for p in (tmp_path / "gettree_txt").glob("**/*")
+        for p in (tmp_path / "extract_tree_txt").glob("**/*")
     } == {
-        "/gettree_txt/new_file.txt",
-        "/gettree_txt/other_folder",
-        "/gettree_txt/other_folder/sub_file.txt",
-        "/gettree_txt/folder",
-        "/gettree_txt/folder/other_file.txt",
+        "/extract_tree_txt/new_file.txt",
+        "/extract_tree_txt/other_folder",
+        "/extract_tree_txt/other_folder/sub_file.txt",
+        "/extract_tree_txt/folder",
+        "/extract_tree_txt/folder/other_file.txt",
     }

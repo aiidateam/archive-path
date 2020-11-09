@@ -387,7 +387,7 @@ class ZipPath:
                 )
                 self._zipfile.write(subpath, zippath)
 
-    def gettree(
+    def extract_tree(
         self,
         outpath: Union[str, Path],
         *,
