@@ -15,7 +15,7 @@ import tarfile
 from types import TracebackType
 from typing import Any, Callable, Iterable, Optional, Set, Type, Union, cast
 
-from .common import _parents
+from .common import _parents, match_glob
 
 __all__ = ("TarPath", "read_file_in_tar")
 
@@ -274,6 +274,22 @@ class TarPath:
 
         if not found_name:
             raise FileNotFoundError(f"No such file or directory: '{self.at}'")
+
+    def glob(self, pattern: str, include_virtual: bool = True):
+        """Iterate over this subtree and yield all existing files (of any
+        kind, including directories) matching the given relative pattern.
+
+        :param pattern: the pattern to match (e.g. use ``**/*`` to yield all).
+        :param include_virtual: whether to yield paths that are not stored in the tar index.
+
+        """
+        iterator = (
+            self._all_at_set()
+            if include_virtual
+            else {name.rstrip("/") for name in self._tarfile.getnames()}
+        )
+        for name in match_glob(self.at, pattern, iterator):
+            yield self.__class__(self, at=name)
 
     # shutil like interface
 

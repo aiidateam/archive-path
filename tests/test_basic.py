@@ -73,6 +73,30 @@ def test_path(tmp_path, klass, filename, write_mode, read_mode, read_func):
             "folder",
             "other_folder",
         }
+        assert {p.at for p in file_write.glob("**/*")} == {
+            "new_file.txt",
+            "other_folder/nested1",
+            "bytes.exe",
+            "bytes2.exe",
+            "folder",
+            "folder/other_file.txt",
+            "other_folder/nested1/nested2",
+            "other_folder",
+            "other_folder/sub_file.txt",
+            "other_folder/sub_folder",
+        }
+        assert {p.at for p in file_write.glob("*")} == {
+            "new_file.txt",
+            "bytes.exe",
+            "bytes2.exe",
+            "folder",
+            "other_folder",
+        }
+        assert {p.at for p in file_write.glob("**/*.txt")} == {
+            "new_file.txt",
+            "folder/other_file.txt",
+            "other_folder/sub_file.txt",
+        }
 
     # test read
     file_read = klass(tmp_path / filename, mode=read_mode)
