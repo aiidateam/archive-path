@@ -387,15 +387,41 @@ class ZipPath:
                 )
                 self._zipfile.write(subpath, zippath)
 
-    def gettree(self, outpath: Union[str, Path], *, pattern: str = "**/*"):
+    def gettree(
+        self,
+        outpath: Union[str, Path],
+        *,
+        pattern: str = "**/*",
+        callback: Optional[Callable[[str, Any], None]] = None,
+        cb_descript: str = "Extracting objects",
+    ):
         """Extract the archive path (and recursive children) to an external path.
 
         :param outpath: The path to output to
         :param pattern: the glob pattern for selecting children to extract
 
+        :param callback: a callback to report on the process, ``callback(action, value)``,
+            with the following callback signatures:
+
+            - ``callback('init', {'total': <int>, 'description': <str>})``,
+                to signal the start of a process, its total iterations and description
+            - ``callback('update', <int>)``,
+                to signal an update to the process and the number of iterations to progress
+
+        :param cb_descript: the description to return in the callback
+
         """
         outpath = cast(str, os.path.abspath(outpath))
+
+        if callback is None:
+            callback = lambda action, value: None  # noqa: E731
+        else:
+            callback("init", {"total": 1, "description": "Counting objects to extract"})
+            count = sum(1 for _ in self.glob(pattern, include_virtual=False))
+            callback("init", {"total": count, "description": cb_descript})
+
         for path in self.glob(pattern, include_virtual=False):
+            callback("update", 1)
             try:
                 info = self._zipfile.getinfo(path.at)
             except KeyError:
