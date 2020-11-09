@@ -9,7 +9,7 @@
 from contextlib import contextmanager, suppress
 import io
 import itertools
-from pathlib import Path
+from pathlib import Path, PosixPath
 import posixpath
 import tarfile
 from types import TracebackType
@@ -399,13 +399,21 @@ class TarPath:
 
         :param cb_descript: the description to return in the callback
 
+        :raises NotADirectoryError: If the zip path is not a directory
+
         """
+        if not self.is_dir():
+            raise NotADirectoryError(f"Source is not a directory: {self.at}")
+
         if callback is None:
             callback = lambda action, value: None  # noqa: E731
         else:
             callback("init", {"total": 1, "description": "Counting objects to extract"})
             count = sum(1 for _ in self.glob(pattern, include_virtual=False))
             callback("init", {"total": count, "description": cb_descript})
+
+        # always make base directory
+        Path(outpath).joinpath(PosixPath(self.at)).mkdir(parents=True, exist_ok=True)
 
         for path in self.glob(pattern, include_virtual=False):
             callback("update", 1)
