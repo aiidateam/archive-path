@@ -387,6 +387,21 @@ class ZipPath:
                 )
                 self._zipfile.write(subpath, zippath)
 
+    def gettree(self, outpath: Union[str, Path], *, pattern: str = "**/*"):
+        """Extract the archive path (and recursive children) to an external path.
+
+        :param outpath: The path to output to
+        :param pattern: the glob pattern for selecting children to extract
+
+        """
+        outpath = cast(str, os.path.abspath(outpath))
+        for path in self.glob(pattern, include_virtual=False):
+            try:
+                info = self._zipfile.getinfo(path.at)
+            except KeyError:
+                info = self._zipfile.getinfo(path.at + "/")
+            self._zipfile.extract(path=outpath, member=info)
+
 
 class FileList(Sequence):
     """A list of ``zipfile.ZipInfo`` which mirrors the ``zipfile.ZipFile.NameToInfo`` mapping.

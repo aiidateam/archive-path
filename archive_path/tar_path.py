@@ -372,6 +372,30 @@ class TarPath:
                 )
                 self._tarfile.add(str(subpath), tarpath, recursive=False)
 
+    def gettree(
+        self,
+        outpath: Union[str, Path],
+        *,
+        pattern: str = "**/*",
+        allow_dev: bool = False,
+        allow_symlink: bool = False,
+    ):
+        """Extract the archive path (and recursive children) to an external path.
+
+        :param outpath: The path to output to
+        :param pattern: the glob pattern for selecting children to extract
+        :param allow_dev: output block devices
+        :param allow_symlink: output symlinks
+
+        """
+        for path in self.glob(pattern, include_virtual=False):
+            info = self._tarfile.getmember(path.at)
+            if (not allow_dev) and info.isdev():
+                continue
+            if (not allow_symlink) and (info.islnk() or info.issym()):
+                continue
+            self._tarfile.extract(path=outpath, member=info)
+
 
 def read_file_in_tar(
     filepath: str, path: str, encoding: Optional[str] = "utf8", mode="r:*"
