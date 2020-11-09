@@ -81,6 +81,5 @@ def match_glob(base: str, pattern: str, iterator: Iterable[str]) -> Iterable[str
             continue
         if name_parts[:at_parts_len] != at_parts:
             continue
-        print(name, name_parts, at_parts_len, match)
         if fnmatch(name_parts[-1], match):
             yield name

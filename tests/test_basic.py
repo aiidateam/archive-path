@@ -6,6 +6,8 @@
 # For further information on the license, see the LICENSE file            #
 ###########################################################################
 """Test compression utilities"""
+from typing import Type, Union
+
 import pytest
 
 from archive_path import TarPath, ZipPath, read_file_in_tar, read_file_in_zip
@@ -19,7 +21,14 @@ from archive_path import TarPath, ZipPath, read_file_in_tar, read_file_in_zip
     ],
     ids=("zip", "tar.gz"),
 )
-def test_path(tmp_path, klass, filename, write_mode, read_mode, read_func):
+def test_path(
+    tmp_path,
+    klass: Union[Type[TarPath], Type[ZipPath]],
+    filename,
+    write_mode,
+    read_mode,
+    read_func,
+):
     """Test basic functionality and equivalence of ``ZipPath`` and ``TarPath``."""
 
     # test write
@@ -133,3 +142,42 @@ def test_path(tmp_path, klass, filename, write_mode, read_mode, read_func):
     assert (klass(tmp_path / filename) / "a") == klass(tmp_path / filename).joinpath(
         "a"
     )
+
+    # test extract_tree
+    file_read.extract_tree(tmp_path / "extract_tree_all")
+    assert {
+        p.as_posix().replace(tmp_path.as_posix(), "")
+        for p in (tmp_path / "extract_tree_all").glob("**/*")
+    } == {
+        "/extract_tree_all/new_file.txt",
+        "/extract_tree_all/other_folder",
+        "/extract_tree_all/other_folder/sub_file.txt",
+        "/extract_tree_all/folder",
+        "/extract_tree_all/folder/other_file.txt",
+        "/extract_tree_all/other_folder/nested1",
+        "/extract_tree_all/bytes.exe",
+        "/extract_tree_all/other_folder/nested1/nested2",
+        "/extract_tree_all/bytes2.exe",
+        "/extract_tree_all/other_folder/sub_folder",
+    }
+
+    file_read.joinpath("folder").extract_tree(tmp_path / "extract_tree_folder")
+    assert {
+        p.as_posix().replace(tmp_path.as_posix(), "")
+        for p in (tmp_path / "extract_tree_folder").glob("**/*")
+    } == {
+        "/extract_tree_folder/folder",
+        "/extract_tree_folder/folder/other_file.txt",
+    }
+
+    file_read.extract_tree(tmp_path / "extract_tree_txt", pattern="**/*.txt")
+    assert {
+        p.as_posix().replace(tmp_path.as_posix(), "")
+        for p in (tmp_path / "extract_tree_txt").glob("**/*")
+    } == {
+        "/extract_tree_txt/new_file.txt",
+        "/extract_tree_txt/other_folder",
+        "/extract_tree_txt/other_folder/sub_file.txt",
+        "/extract_tree_txt/folder",
+        "/extract_tree_txt/folder/other_file.txt",
+    }
