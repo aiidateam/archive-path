@@ -3,6 +3,7 @@
 [![Build Status][ci-badge]][ci-link]
 [![codecov.io][cov-badge]][cov-link]
 [![PyPI version][pypi-badge]][pypi-link]
+[![Conda Version][conda-badge]][conda-link]
 
 A package to provide pathlib like access to zip & tar archives.
 
@@ -69,6 +70,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to this 
 
 [ci-badge]: https://github.com/aiidateam/archive-path/workflows/CI/badge.svg?branch=main
 [ci-link]: https://github.com/aiidateam/archive-path/actions?query=workflow%3ACI+branch%3Amain+event%3Apush
+[conda-badge]: https://img.shields.io/conda/vn/conda-forge/archive-path.svg
+[conda-link]: https://anaconda.org/conda-forge/archive-path
 [cov-badge]: https://codecov.io/gh/aiidateam/archive-path/branch/main/graph/badge.svg
 [cov-link]: https://codecov.io/gh/aiidateam/archive-path
 [pypi-badge]: https://img.shields.io/pypi/v/archive-path.svg
