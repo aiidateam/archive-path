@@ -156,10 +156,15 @@ class ArchiveWriter:
     def __exit__(self, *args, **kwargs):
         """Finalise the archive"""
         self._conn.close()
+        # TODO if compress smaller file, but then slower to extract
+        # test size with/without (also maybe vacuum before storing)
         with (self._work_dir / self._db_name).open("rb") as handle:
             self.stream_binary(self._db_name, handle)
+        # the metadata is small, so no benefit for compression
         self.stream_binary(
-            self._meta_name, BytesIO(json.dumps(self._metadata).encode("utf8"))
+            self._meta_name,
+            BytesIO(json.dumps(self._metadata).encode("utf8")),
+            compression=zipfile.ZIP_STORED,
         )
         self._zip_path.close()
         self._central_dir.close()
