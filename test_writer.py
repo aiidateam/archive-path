@@ -176,6 +176,7 @@ class ArchiveWriter:
         self, orm_cls: Type[Base], data: List[Dict[str, Any]], commit: bool = True
     ) -> None:
         """Add multiple rows to a database table in the archive."""
+        # TODO these do not fail if a non-existent column is given (silently dropped)
         self.assert_in_context()
         self._conn.execute(insert(orm_cls.__table__), data)
         if commit:
@@ -309,7 +310,10 @@ def archive_querybuilder(path: Union[str, Path]) -> Iterator[aiida_orm.QueryBuil
         extract_db(path, db_path)
         engine = create_engine(f"sqlite:///{db_path}", future=True)
         with orm.Session(engine) as session:
-            from aiida.orm.implementation.backends import Backend as _abc
+            from aiida.orm.implementation.backends import Backend as _BackendCls
+
+            # TODO currently class checked against Backend
+            # may be better to check against Protocol
 
             class _BackendQueryBuilder(_abc):
                 def get_session(self):
@@ -317,9 +321,11 @@ def archive_querybuilder(path: Union[str, Path]) -> Iterator[aiida_orm.QueryBuil
 
                 def get_backend_entity(self, res):
                     # TODO dbmode -> backend model
+                    if isinstance(res, SqliteModel):
+                        raise NotImplementedError("projecting orm classes from archive")
                     return res
 
-                # required (bu unneeded) abstract methods
+                # required (but unneeded) abstract methods
                 def authinfos(self):
                     pass
 
@@ -364,7 +370,6 @@ with ArchiveWriter("test.zip", mode="w", debug=False) as writer:
     writer.update_metadata({"aiida_version": 2, "db_schema_version": 1})
     writer.stream_binary("tester3", BytesIO(b"hallo"), compression=zipfile.ZIP_STORED)
     writer.stream_binary("tester4", BytesIO(b"hallo"), comment=b"a comment")
-    # TODO these do not fail if a non-existent field is given
     writer.insert_rows(DbUser, [{"id": 1, "email": "bob"}, {"id": 2, "email": "bill"}])
     writer.insert_rows(DbComputer, [{"label": "bebop"}])
     writer.insert_rows(
@@ -386,4 +391,4 @@ with archive_db_session("test.zip") as session:
     print(session.execute(select(DbUser.id, DbNode.id).join(DbNode)).all())
 
 with archive_querybuilder("test.zip") as qb:
-    print(qb.append(aiida_orm.Node, project="id").all(flat=True))
+    print(qb.append(aiida_orm.Node, project="**").dict())
