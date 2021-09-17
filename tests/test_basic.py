@@ -7,17 +7,24 @@
 ###########################################################################
 """Test compression utilities"""
 from typing import Type, Union
+import zipfile
 
 import pytest
 
-from archive_path import TarPath, ZipPath, read_file_in_tar, read_file_in_zip
+from archive_path import (
+    TarPath,
+    ZipPath,
+    extract_file_in_zip,
+    read_file_in_tar,
+    read_file_in_zip,
+)
 
 
 @pytest.mark.parametrize(
     "klass,filename,write_mode,read_mode,read_func",
     [
         (ZipPath, "test.zip", "w", "r", read_file_in_zip),
-        (TarPath, "test.tar.gz", "w:gz", "r:gz", read_file_in_tar),
+        (TarPath, "test.tar.gz", "w:gz", "r:gz", read_file_in_tar),  # type: ignore
     ],
     ids=("zip", "tar.gz"),
 )
@@ -181,3 +188,46 @@ def test_path(
         "/extract_tree_txt/folder",
         "/extract_tree_txt/folder/other_file.txt",
     }
+
+
+def test_zip_write(tmp_path):
+    """Test setting compression and comment options for write."""
+    zipinfos = {}
+    with ZipPath(tmp_path / "test.zip", mode="w", name_to_info=zipinfos) as path:
+        with path.joinpath("name").open("wb", level=5) as handle:
+            handle.write(b"hallo")
+    assert zipinfos["name"].compress_type == zipfile.ZIP_DEFLATED
+    assert zipinfos["name"]._compresslevel == 5
+
+    zipinfos = {}
+    with ZipPath(tmp_path / "test2.zip", mode="w", name_to_info=zipinfos) as path:
+        with path.joinpath("name").open(
+            "wb", compression=zipfile.ZIP_STORED, comment=b"comment"
+        ) as handle:
+            handle.write(b"hallo")
+    assert zipinfos["name"].compress_type == zipfile.ZIP_STORED
+    assert zipinfos["name"].comment == b"comment"
+
+
+def test_zip_write_order(tmp_path):
+    """Test specifying the order of the central directory write"""
+    with ZipPath(tmp_path / "test.zip", mode="w", info_order=("c", "a", "b")) as path:
+        path.joinpath("a").write_bytes(b"test")
+        path.joinpath("b").write_bytes(b"test")
+        path.joinpath("c").write_bytes(b"test")
+
+    zipinfos = {}
+    with ZipPath(tmp_path / "test.zip", mode="r", name_to_info=zipinfos) as path:
+        assert list(zipinfos) == ["c", "a", "b"]
+
+
+def test_extract_file_in_zip(tmp_path):
+    with ZipPath(tmp_path / "test.zip", mode="w") as path:
+        path.joinpath("other").write_bytes(b"test")
+        path.joinpath("name").write_bytes(b"test")
+    with open(tmp_path / "name", mode="wb") as handle:
+        extract_file_in_zip(tmp_path / "test.zip", "name", handle)
+    assert tmp_path.joinpath("name").read_bytes() == b"test"
+    with pytest.raises(FileNotFoundError):
+        with open(tmp_path / "name", mode="wb") as handle:
+            extract_file_in_zip(tmp_path / "test.zip", "name", handle, search_limit=1)
