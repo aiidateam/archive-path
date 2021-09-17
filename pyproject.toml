@@ -46,3 +46,7 @@ known_first_party = ["archive_path", "tests"]
 
 # Settings for Black compatibility
 profile = "black"
+
+[tool.mypy]
+show_error_codes = true
+check_untyped_defs = true

@@ -192,21 +192,21 @@ def test_path(
 
 def test_zip_write(tmp_path):
     """Test setting compression and comment options for write."""
-    zipinfos = {}
+    zipinfos: dict = {}
     with ZipPath(tmp_path / "test.zip", mode="w", name_to_info=zipinfos) as path:
         with path.joinpath("name").open("wb", level=5) as handle:
             handle.write(b"hallo")
     assert zipinfos["name"].compress_type == zipfile.ZIP_DEFLATED
     assert zipinfos["name"]._compresslevel == 5
 
-    zipinfos = {}
-    with ZipPath(tmp_path / "test2.zip", mode="w", name_to_info=zipinfos) as path:
+    zipinfos2: dict = {}
+    with ZipPath(tmp_path / "test2.zip", mode="w", name_to_info=zipinfos2) as path:
         with path.joinpath("name").open(
             "wb", compression=zipfile.ZIP_STORED, comment=b"comment"
         ) as handle:
             handle.write(b"hallo")
-    assert zipinfos["name"].compress_type == zipfile.ZIP_STORED
-    assert zipinfos["name"].comment == b"comment"
+    assert zipinfos2["name"].compress_type == zipfile.ZIP_STORED
+    assert zipinfos2["name"].comment == b"comment"
 
 
 def test_zip_write_order(tmp_path):
@@ -216,7 +216,7 @@ def test_zip_write_order(tmp_path):
         path.joinpath("b").write_bytes(b"test")
         path.joinpath("c").write_bytes(b"test")
 
-    zipinfos = {}
+    zipinfos: dict = {}
     with ZipPath(tmp_path / "test.zip", mode="r", name_to_info=zipinfos) as path:
         assert list(zipinfos) == ["c", "a", "b"]
 

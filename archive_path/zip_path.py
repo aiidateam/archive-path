@@ -141,7 +141,11 @@ class ZipPath:
             self._zipfile = path._zipfile
 
     def __str__(self):
-        return posixpath.join(self.root.filename, self.at)
+        return (
+            posixpath.join(self.root.filename, self.at)  # type: ignore[attr-defined]
+            if self.root.filename
+            else self.at
+        )
 
     def __repr__(self):
         return self.__repr.format(self=self)

@@ -88,7 +88,11 @@ class TarPath:
             self._tarfile = path._tarfile
 
     def __str__(self):
-        return posixpath.join(self.root.filename, self.at)
+        return (
+            posixpath.join(self.root.filename, self.at)  # type: ignore[attr-defined]
+            if self.root.filename  # type: ignore[attr-defined]
+            else self.at
+        )
 
     def __repr__(self):
         return self.__repr.format(self=self)
