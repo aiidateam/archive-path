@@ -16,11 +16,13 @@ import itertools
 import os
 from pathlib import Path, PurePosixPath
 import posixpath
+import shutil
 import threading
 from types import TracebackType
 from typing import (
     IO,
     Any,
+    BinaryIO,
     Callable,
     Dict,
     Iterable,
@@ -41,7 +43,11 @@ __all__ = (
     "FilteredZipInfo",
     "StopZipIndexRead",
     "read_file_in_zip",
+    "extract_file_in_zip",
+    "NOTSET",
 )
+
+NOTSET = ()
 
 
 class ZipPath:
@@ -82,7 +88,9 @@ class ZipPath:
         at: str = "",  # pylint: disable=invalid-name
         allow_zip64: bool = True,
         compression: int = zipfile.ZIP_DEFLATED,
+        compresslevel: Optional[int] = None,
         name_to_info: Optional[Dict[str, zipfile.ZipInfo]] = None,
+        write_first: List[str] = (),
     ):
         """Initialise a zip path item.
 
@@ -114,8 +122,10 @@ class ZipPath:
                 path,
                 mode=mode,
                 compression=compression,
+                compresslevel=compresslevel,
                 allowZip64=allow_zip64,
                 name_to_info=name_to_info,
+                write_first=write_first,
             )
         else:
             self._filepath = path._filepath
@@ -237,12 +247,38 @@ class ZipPath:
         return self.__class__(self, at=posixpath.join(self.at, path))
 
     @contextmanager  # noqa: A003
-    def open(self, mode: str = "rb"):  # noqa: A003
-        """Open the file pointed by this path and return a file object."""
+    def open(
+        self, mode: str = "rb", *, compression=NOTSET, level=NOTSET, comment=NOTSET
+    ):  # noqa: A003
+        """Open the file pointed by this path and return a file object.
+
+        write only:
+
+        :param compression: the ZIP compression method to use when writing the archive,
+                if not set use default value,
+                ZIP_STORED (no compression), ZIP_DEFLATED (requires zlib),
+                ZIP_BZIP2 (requires bz2) or ZIP_LZMA (requires lzma).
+        :param level: control the compression level to use when writing files to the archive
+                When using ZIP_DEFLATED integers 0 through 9 are accepted.
+                When using ZIP_BZIP2 integers 1 through 9 are accepted.
+        :param comment: A binary comment, stored in the central directory
+        """
         # zip file open misleading signals 'r', 'w', when actually they are byte mode
-        if mode not in {"rb", "wb"}:
+        if mode == "wb":
+            zinfo = zipfile.ZipInfo(self.at)
+            zinfo.compress_type = (
+                self._zipfile.compression if compression is NOTSET else compression
+            )
+            zinfo._compresslevel = (
+                self._zipfile.compresslevel if level is NOTSET else level
+            )
+            if comment is not NOTSET:
+                zinfo.comment = comment
+        elif mode == "rb":
+            zinfo = self.at
+        else:
             raise ValueError('open() requires mode "rb" or "wb"')
-        with self.root.open(self.at, mode=mode[0]) as handle:
+        with self.root.open(zinfo, mode=mode[0]) as handle:
             yield handle
 
     def _write(self, content: Union[str, bytes]):
@@ -445,8 +481,11 @@ class FileList(Sequence):
     For indexing, assumes that ``NameToInfo`` is an ordered dict.
     """
 
-    def __init__(self, name_to_info: Dict[str, zipfile.ZipInfo]):
+    def __init__(
+        self, name_to_info: Dict[str, zipfile.ZipInfo], write_first: List[str] = ()
+    ):
         self._name_to_info = name_to_info
+        self._write_first = write_first
 
     def __getitem__(self, item):
         key = list(self._name_to_info)[item]
@@ -462,7 +501,12 @@ class FileList(Sequence):
         return key in self._name_to_info
 
     def __iter__(self):
-        for value in self._name_to_info.values():
+        for key in self._write_first:
+            if key in self._name_to_info:
+                yield self._name_to_info[key]
+        for key, value in self._name_to_info.items():
+            if key in self._write_first:
+                continue
             yield value
 
     def __reversed__(self):
@@ -542,15 +586,20 @@ class ZipFileExtra(zipfile.ZipFile):
         *,
         strict_timestamps: bool = True,
         name_to_info: Optional[MutableMapping] = None,
+        write_first: List[str] = (),
     ):
         """Open the ZIP file with mode read 'r', write 'w', exclusive create 'x', or append 'a'.
 
         :param file: The zip file to use
         :param mode: The mode in which to open the zip file
         :param compression: the ZIP compression method to use when writing the archive
+                ZIP_STORED (no compression), ZIP_DEFLATED (requires zlib),
+                ZIP_BZIP2 (requires bz2) or ZIP_LZMA (requires lzma).
+        :param compresslevel: control the compression level to use when writing files to the archive
+                When using ZIP_DEFLATED integers 0 through 9 are accepted.
+                When using ZIP_BZIP2 integers 1 through 9 are accepted.
         :param allowZip64: If True, zipfile will create ZIP files that use the ZIP64 extensions,
             when the zipfile is larger than 4 GiB
-        :param compresslevel: control the compression level to use when writing files to the archive
         :param strict_timestamps: when set to False, allows to zip files older than 1980-01-01
 
         :param name_to_info: The dictionary for storing mappings of filename -> ``ZipInfo``,
@@ -566,9 +615,9 @@ class ZipFileExtra(zipfile.ZipFile):
         self._didModify: bool = False
         self.debug: int = 0  # Level of printing: 0 through 3
         # Find file info given name
-        self.NameToInfo: Dict[str, zipfile.ZipInfo] = name_to_info or {}  # type: ignore
+        self.NameToInfo: Dict[str, zipfile.ZipInfo] = name_to_info if name_to_info is not None else {}  # type: ignore
         # List of ZipInfo instances for archive
-        self.filelist: List[zipfile.ZipInfo] = FileList(self.NameToInfo)  # type: ignore
+        self.filelist: List[zipfile.ZipInfo] = FileList(self.NameToInfo, write_first)  # type: ignore
         self.compression: int = compression  # Method of compression
         self.compresslevel: Optional[int] = compresslevel
         self.mode: str = mode
@@ -665,7 +714,7 @@ class ZipFileExtra(zipfile.ZipFile):
 def read_file_in_zip(
     filepath: str, path: str, encoding: Optional[str] = "utf8"
 ) -> Union[bytes, str]:
-    """Read a text based file from inside a zip file and return its content.
+    """Read a  file from inside a zip file and return its content.
 
     This function is optimised for cpu/memory performance,
     since it returns the file as soon as its index is found in the zip registry,
@@ -690,5 +739,35 @@ def read_file_in_zip(
         return output
     except zipfile.BadZipfile as error:
         raise IOError(f"The input file cannot be read: {error}")
+    except KeyError:
+        raise FileNotFoundError(f"required file {path} is not included")
+
+
+def extract_file_in_zip(
+    filepath: str, path: str, handle: BinaryIO, buffer_size: Optional[int] = None
+) -> None:
+    """Extract file from inside a zip file and return its content.
+
+    This function is optimised for cpu/memory performance,
+    since it returns the file as soon as its index is found in the zip registry,
+    and does not construct the full index in memory.
+
+    For best performance, the path should have been stored near the start of the index.
+
+    :param filepath: the path to the zip file
+    :param path: the relative path within the zip file
+    :param handle: The handle to write to
+
+    :raises IOError: If the zip file cannot be read
+    :raises FileNotFoundError: If the path in the zip file does not exist
+
+    """
+    try:
+        with ZipFileExtra(
+            filepath, "r", allowZip64=True, name_to_info=FilteredZipInfo({path})
+        ).open(path) as zip_handle:
+            shutil.copyfileobj(zip_handle, handle, buffer_size)
+    except zipfile.BadZipfile as error:
+        raise IOError(f"The zip file cannot be read: {error}")
     except KeyError:
         raise FileNotFoundError(f"required file {path} is not included")
