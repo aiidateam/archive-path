@@ -315,12 +315,12 @@ def archive_querybuilder(path: Union[str, Path]) -> Iterator[aiida_orm.QueryBuil
             # TODO currently class checked against Backend
             # may be better to check against Protocol
 
-            class _BackendQueryBuilder(_abc):
+            class _BackendQueryBuilder(_BackendCls):
                 def get_session(self):
                     return session
 
                 def get_backend_entity(self, res):
-                    # TODO dbmode -> backend model
+                    # TODO db model -> backend entity
                     if isinstance(res, SqliteModel):
                         raise NotImplementedError("projecting orm classes from archive")
                     return res
@@ -391,4 +391,8 @@ with archive_db_session("test.zip") as session:
     print(session.execute(select(DbUser.id, DbNode.id).join(DbNode)).all())
 
 with archive_querybuilder("test.zip") as qb:
-    print(qb.append(aiida_orm.Node, project="**").dict())
+    print(
+        qb.append(aiida_orm.Node, project="**", filters={"id": 1})
+        .append(aiida_orm.User, project="email")
+        .dict()
+    )
