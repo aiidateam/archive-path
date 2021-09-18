@@ -556,7 +556,7 @@ class FilteredZipInfo(abc.MutableMapping):
         return self._dict.__getitem__(name)
 
     def __setitem__(self, name, item):
-        self._read += 1
+        self._read += 1/2  # _RealGetContents appends to file list, then adds to mapping
         if name in self._filenames:
             self._dict.__setitem__(name, item)
         if self._max_infos and self._max_infos <= self._read:
