@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.3.1 - 2021-09-22
+
+✨ NEW: `open_file_in_zip`/`open_file_in_tar` contexts
+
 ## v0.3.0 - 2021-09-18
 
 👌 IMPROVE: Introduce more zip read/write options
