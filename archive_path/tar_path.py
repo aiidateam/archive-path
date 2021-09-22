@@ -13,11 +13,22 @@ from pathlib import Path, PurePosixPath
 import posixpath
 import tarfile
 from types import TracebackType
-from typing import Any, Callable, Iterable, Optional, Set, Type, Union, cast
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Optional,
+    Set,
+    Type,
+    Union,
+    cast,
+)
 
 from .common import _parents, match_glob
 
-__all__ = ("TarPath", "read_file_in_tar")
+__all__ = ("TarPath", "open_file_in_tar", "read_file_in_tar")
 
 
 class TarPath:
@@ -431,6 +442,46 @@ class TarPath:
             self._tarfile.extract(path=outpath, member=info)
 
 
+@contextmanager
+def open_file_in_tar(
+    filepath: str, path: str, *, mode: str = "r:*"
+) -> Iterator[IO[bytes]]:
+    """Open a file from inside a tar file.
+
+    This function is optimised for cpu/memory performance,
+    since it returns the file as soon as its index is found in the tar registry,
+    and does not construct the full index in memory.
+
+    For best performance, the path should have been stored near the start of the index.
+
+    :param filepath: the path to the zip file
+    :param path: the relative path within the zip file
+
+    :raises IOError: If the zip file cannot be read
+    :raises FileNotFoundError: If the path in the zip file does not exist
+    """
+    assert mode.startswith("r")
+    try:
+        with tarfile.open(filepath, mode, format=tarfile.PAX_FORMAT) as tar_handle:
+            tarinfo = None
+            while True:
+                tarinfo = tar_handle.next()  # noqa: B305
+                if tarinfo is None or tarinfo.name == path:
+                    break
+                # flush stored members
+                tar_handle.members = []  # type: ignore
+            if tarinfo is None:
+                raise FileNotFoundError(f"required file `{path}` is not included")
+            handle = tar_handle.extractfile(tarinfo)
+            if handle is None:
+                raise FileNotFoundError(f"required file `{path}` is not included")
+            yield handle
+    except tarfile.ReadError:
+        raise IOError("The input file format is not valid (not a tar file)")
+    except (KeyError, AttributeError):
+        raise FileNotFoundError(f"required file `{path}` is not included")
+
+
 def read_file_in_tar(
     filepath: str, path: str, encoding: Optional[str] = "utf8", mode="r:*"
 ) -> Union[bytes, str]:
@@ -450,23 +501,8 @@ def read_file_in_tar(
     :raises FileNotFoundError: If the path in the zip file does not exist
 
     """
-    assert mode.startswith("r")
-    try:
-        with tarfile.open(filepath, mode, format=tarfile.PAX_FORMAT) as handle:
-            tarinfo = None
-            while True:
-                tarinfo = handle.next()  # noqa: B305
-                if tarinfo is None or tarinfo.name == path:
-                    break
-                # flush stored members
-                handle.members = []  # type: ignore
-            if tarinfo is None:
-                raise FileNotFoundError(f"required file `{path}` is not included")
-            output = handle.extractfile(tarinfo).read()  # type: ignore
-            if encoding is not None:
-                return output.decode(encoding)
-            return output
-    except tarfile.ReadError:
-        raise IOError("The input file format is not valid (not a tar file)")
-    except (KeyError, AttributeError):
-        raise FileNotFoundError(f"required file `{path}` is not included")
+    with open_file_in_tar(filepath, path, mode=mode) as handle:
+        output = handle.read()
+    if encoding is not None:
+        return output.decode(encoding)
+    return output

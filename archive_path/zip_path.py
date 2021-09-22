@@ -26,6 +26,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Optional,
     Sequence,
@@ -43,6 +44,7 @@ __all__ = (
     "ZipFileExtra",
     "FilteredZipInfo",
     "StopZipIndexRead",
+    "open_file_in_zip",
     "read_file_in_zip",
     "extract_file_in_zip",
     "NOTSET",
@@ -550,13 +552,15 @@ class FilteredZipInfo(abc.MutableMapping):
         self._dict: Dict[str, zipfile.ZipInfo] = {}
         self._filenames = set(filenames)
         self._max_infos = max_infos
-        self._read = 0
+        self._read = 0.0
 
     def __getitem__(self, name):
         return self._dict.__getitem__(name)
 
     def __setitem__(self, name, item):
-        self._read += 1
+        self._read += (
+            1 / 2
+        )  # _RealGetContents appends to file list, then adds to mapping
         if name in self._filenames:
             self._dict.__setitem__(name, item)
         if self._max_infos and self._max_infos <= self._read:
@@ -734,6 +738,42 @@ class ZipFileExtra(zipfile.ZipFile):
         return list(self.NameToInfo)
 
 
+@contextmanager
+def open_file_in_zip(
+    filepath: str,
+    path: str,
+    *,
+    search_limit: Optional[int] = None,
+) -> Iterator[IO[bytes]]:
+    """Open a file from inside a zip file.
+
+    This function is optimised for cpu/memory performance,
+    since it returns the file as soon as its index is found in the zip registry,
+    and does not construct the full index in memory.
+
+    For best performance, the path should have been stored near the start of the index.
+
+    :param filepath: the path to the zip file
+    :param path: the relative path within the zip file
+    :param search_limit: Limit the search in the zip to the first n records
+
+    :raises IOError: If the zip file cannot be read
+    :raises FileNotFoundError: If the path in the zip file does not exist
+    """
+    try:
+        with ZipFileExtra(
+            filepath,
+            "r",
+            allowZip64=True,
+            name_to_info=FilteredZipInfo({path}, max_infos=search_limit),
+        ).open(path, "r") as handle:
+            yield handle
+    except zipfile.BadZipfile as error:
+        raise IOError(f"The input file cannot be read: {error}")
+    except KeyError:
+        raise FileNotFoundError(f"required file {path} is not included")
+
+
 def read_file_in_zip(
     filepath: str,
     path: str,
@@ -741,7 +781,7 @@ def read_file_in_zip(
     *,
     search_limit: Optional[int] = None,
 ) -> Union[bytes, str]:
-    """Read a  file from inside a zip file and return its content.
+    """Read a file from inside a zip file and return its content.
 
     This function is optimised for cpu/memory performance,
     since it returns the file as soon as its index is found in the zip registry,
@@ -758,20 +798,11 @@ def read_file_in_zip(
     :raises FileNotFoundError: If the path in the zip file does not exist
 
     """
-    try:
-        output = ZipFileExtra(
-            filepath,
-            "r",
-            allowZip64=True,
-            name_to_info=FilteredZipInfo({path}, max_infos=search_limit),
-        ).read(path)
-        if encoding is not None:
-            return output.decode(encoding)
-        return output
-    except zipfile.BadZipfile as error:
-        raise IOError(f"The input file cannot be read: {error}")
-    except KeyError:
-        raise FileNotFoundError(f"required file {path} is not included")
+    with open_file_in_zip(filepath, path, search_limit=search_limit) as zip_handle:
+        output = zip_handle.read()
+    if encoding is not None:
+        return output.decode(encoding)
+    return output
 
 
 def extract_file_in_zip(
@@ -800,17 +831,7 @@ def extract_file_in_zip(
     :raises FileNotFoundError: If the path in the zip file does not exist
 
     """
-    try:
-        with ZipFileExtra(
-            filepath,
-            "r",
-            allowZip64=True,
-            name_to_info=FilteredZipInfo({path}, max_infos=search_limit),
-        ).open(path) as zip_handle:
-            shutil.copyfileobj(
-                zip_handle, handle, **({"length": buffer_size} if buffer_size else {})
-            )
-    except zipfile.BadZipfile as error:
-        raise IOError(f"The zip file cannot be read: {error}")
-    except KeyError:
-        raise FileNotFoundError(f"required file {path} is not included")
+    with open_file_in_zip(filepath, path, search_limit=search_limit) as zip_handle:
+        shutil.copyfileobj(
+            zip_handle, handle, **({"length": buffer_size} if buffer_size else {})
+        )
