@@ -771,7 +771,10 @@ def open_file_in_zip(
     except zipfile.BadZipfile as error:
         raise IOError(f"The input file cannot be read: {error}")
     except KeyError:
-        raise FileNotFoundError(f"required file {path} is not included")
+        msg = f"required file {path} is not included"
+        if search_limit:
+            msg += f" within first {search_limit} records"
+        raise FileNotFoundError(msg)
 
 
 def read_file_in_zip(
