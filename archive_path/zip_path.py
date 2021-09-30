@@ -17,7 +17,9 @@ import os
 from pathlib import Path, PurePosixPath
 import posixpath
 import shutil
+import stat
 import threading
+import time
 from types import TracebackType
 from typing import (
     IO,
@@ -281,7 +283,7 @@ class ZipPath:
         # zip file open misleading signals 'r', 'w', when actually they are byte mode
         zinfo: Union[str, zipfile.ZipInfo]
         if mode == "wb":
-            zinfo = zipfile.ZipInfo(self.at)
+            zinfo = zipfile.ZipInfo(self.at, date_time=time.localtime(time.time())[0:6])
             zinfo.compress_type = (
                 self._zipfile.compression if compression is NOTSET else compression
             )
@@ -326,6 +328,39 @@ class ZipPath:
         """Read text from the file."""
         content = self.read_bytes()
         return content.decode(encoding=encoding)
+
+    def mkdir(self, mode=0o777, exist_ok=False):
+        """Create a new directory at this given path."""
+        if self.exists():
+            if not exist_ok:
+                raise FileExistsError(f"cannot create directory: '{self.at}'")
+            return
+        stat.filemode(mode)  # check the mode is valid
+        path = self.at if self.at.endswith("/") else self.at + "/"
+        # this code is copied directly from zipfile.ZipFile.write
+        zinfo = zipfile.ZipInfo(path, date_time=time.localtime(time.time())[0:6])
+        zinfo.file_size = 0
+        # TODO the mode is not currently used with ZipFile.extract
+        zinfo.external_attr = (mode & 0xFFFF) << 16  # Unix attributes
+        zinfo.external_attr |= 0x10  # MS-DOS directory flag
+        zinfo.compress_size = 0
+        zinfo.CRC = 0
+        _zipfile = self._zipfile
+        with _zipfile._lock:
+            if _zipfile._seekable:
+                _zipfile.fp.seek(_zipfile.start_dir)
+            zinfo.header_offset = _zipfile.fp.tell()  # Start of header bytes
+            if zinfo.compress_type == zipfile.ZIP_LZMA:
+                # Compressed data includes an end-of-stream (EOS) marker
+                zinfo.flag_bits |= 1 << 1
+
+            _zipfile._writecheck(zinfo)  # type: ignore[attr-defined]
+            _zipfile._didModify = True
+
+            _zipfile.filelist.append(zinfo)
+            _zipfile.NameToInfo[zinfo.filename] = zinfo
+            _zipfile.fp.write(zinfo.FileHeader(False))
+            _zipfile.start_dir = _zipfile.fp.tell()
 
     def iterdir(self) -> Iterable["ZipPath"]:
         """Iterate over the files and folders in this directory (non-recursive)."""
