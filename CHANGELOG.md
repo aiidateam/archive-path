@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.3.3 - 2021-09-30
+
+✨ NEW: Add `TarPath.parts` and `ZipPath.parts`
+
 ## v0.3.2 - 2021-09-30
 
 ✨ NEW: Add `ZipPath.mkdir` method.
