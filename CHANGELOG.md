@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.3.2 - 2021-09-30
+
+✨ NEW: Add `ZipPath.mkdir` method.
+
 ## v0.3.1 - 2021-09-22
 
 ✨ NEW: `open_file_in_zip`/`open_file_in_tar` contexts
