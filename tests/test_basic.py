@@ -231,3 +231,17 @@ def test_extract_file_in_zip(tmp_path):
     with pytest.raises(FileNotFoundError):
         with open(tmp_path / "name", mode="wb") as handle:
             extract_file_in_zip(tmp_path / "test.zip", "name", handle, search_limit=1)
+
+
+def test_zip_mkdir(tmp_path):
+    """Test creating a directory when writing a ZipPath"""
+    with ZipPath(tmp_path / "test.zip", mode="w") as path:
+        path.joinpath("folder").mkdir()
+        path.joinpath("folder").mkdir(exist_ok=True)
+        with pytest.raises(FileExistsError):
+            path.joinpath("folder").mkdir()
+    with zipfile.ZipFile(tmp_path / "test.zip", mode="r") as handle:
+        handle.extractall(tmp_path / "extracted")
+    folder = tmp_path / "extracted" / "folder"
+    assert folder.exists()
+    assert folder.is_dir()
