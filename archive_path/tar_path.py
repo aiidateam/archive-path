@@ -21,6 +21,7 @@ from typing import (
     Iterator,
     Optional,
     Set,
+    Tuple,
     Type,
     Union,
     cast,
@@ -189,6 +190,11 @@ class TarPath:
         """Return the parent of the current internal path within the tar file."""
         parent_at = posixpath.dirname(self.at)
         return self.__class__(self, at=parent_at)
+
+    @property
+    def parts(self) -> Tuple[str, ...]:
+        """Return the parts of the current internal path within the tar file."""
+        return posixpath.split(self.at)
 
     def is_dir(self):
         """Whether this path is an existing directory."""

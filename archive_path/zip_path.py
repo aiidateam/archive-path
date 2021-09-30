@@ -33,6 +33,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     Union,
     cast,
@@ -220,7 +221,7 @@ class ZipPath:
     # pathlib like interface
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the basename of the current internal path within the zip file."""
         return posixpath.basename(self.at)
 
@@ -229,6 +230,11 @@ class ZipPath:
         """Return the parent of the current internal path within the zip file."""
         parent_at = posixpath.dirname(self.at)
         return self.__class__(self, at=parent_at)
+
+    @property
+    def parts(self) -> Tuple[str, ...]:
+        """Return the parts of the current internal path within the zip file."""
+        return posixpath.split(self.at)
 
     def is_dir(self):
         """Whether this path is an existing directory."""
