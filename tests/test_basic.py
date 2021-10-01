@@ -69,10 +69,7 @@ def test_path(
         tmp_path.joinpath("other_folder", "sub_file.txt").write_text("sub_file text")
         (file_write / "other_folder").puttree(tmp_path.joinpath("other_folder"))
 
-        assert file_write.joinpath("other_folder", "sub_file.txt").parts == (
-            "other_folder",
-            "sub_file.txt",
-        )
+        assert file_write.joinpath("a", "b", "c").parts == ("a", "b", "c")
 
         assert file_write._all_at_set() == {  # pylint: disable=protected-access
             "",

@@ -234,7 +234,7 @@ class ZipPath:
     @property
     def parts(self) -> Tuple[str, ...]:
         """Return the parts of the current internal path within the zip file."""
-        return posixpath.split(self.at)
+        return PurePosixPath(self.at).parts
 
     def is_dir(self):
         """Whether this path is an existing directory."""
