@@ -450,7 +450,7 @@ class TarPath:
 
 @contextmanager
 def open_file_in_tar(
-    filepath: str, path: str, *, mode: str = "r:*"
+    filepath: Union[str, Path], path: str, *, mode: str = "r:*"
 ) -> Iterator[IO[bytes]]:
     """Open a file from inside a tar file.
 
@@ -489,7 +489,7 @@ def open_file_in_tar(
 
 
 def read_file_in_tar(
-    filepath: str, path: str, encoding: Optional[str] = "utf8", mode="r:*"
+    filepath: Union[str, Path], path: str, encoding: Optional[str] = "utf8", mode="r:*"
 ) -> Union[bytes, str]:
     """Read a text based file from inside a tar file and return its content.
 
