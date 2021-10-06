@@ -781,7 +781,7 @@ class ZipFileExtra(zipfile.ZipFile):
 
 @contextmanager
 def open_file_in_zip(
-    filepath: str,
+    filepath: Union[str, Path],
     path: str,
     *,
     search_limit: Optional[int] = None,
@@ -819,7 +819,7 @@ def open_file_in_zip(
 
 
 def read_file_in_zip(
-    filepath: str,
+    filepath: Union[str, Path],
     path: str,
     encoding: Optional[str] = "utf8",
     *,
@@ -850,7 +850,7 @@ def read_file_in_zip(
 
 
 def extract_file_in_zip(
-    filepath: str,
+    filepath: Union[str, Path],
     path: str,
     handle: BinaryIO,
     *,
