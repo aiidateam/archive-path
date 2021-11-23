@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.3.6 - 2021-11-23
+
+✨ NEW: Allow parsing `ZipPath` -> `ZipPath.putfile` (propagates compression type+level and comment)
+
 ## v0.3.4 - 2021-09-30
 
 ✨ NEW: Add `TarPath.parts` and `ZipPath.parts`
