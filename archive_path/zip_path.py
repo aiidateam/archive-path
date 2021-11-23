@@ -54,6 +54,7 @@ __all__ = (
 )
 
 NOTSET = ()
+NotSetType = Any  # once python 3.7 dropped: Literal[NOTSET]
 
 
 class ZipPath:
@@ -271,7 +272,12 @@ class ZipPath:
 
     @contextmanager  # noqa: A003
     def open(  # noqa: A003
-        self, mode: str = "rb", *, compression=NOTSET, level=NOTSET, comment=NOTSET
+        self,
+        mode: str = "rb",
+        *,
+        compression: Union[NotSetType, int] = NOTSET,
+        level: Union[NotSetType, int] = NOTSET,
+        comment: Union[NotSetType, bytes] = NOTSET,
     ):
         """Open the file pointed by this path and return a file object.
 
@@ -300,6 +306,10 @@ class ZipPath:
                 zinfo.comment = comment
         elif mode == "rb":
             zinfo = self.at
+            try:
+                self._zipfile.getinfo(self.at)
+            except KeyError:
+                raise FileNotFoundError(self.at)
         else:
             raise ValueError('open() requires mode "rb" or "wb"')
         with self.root.open(zinfo, mode=mode[0]) as handle:
@@ -401,10 +411,39 @@ class ZipPath:
 
     # shutil like interface
 
-    def putfile(self, path: Union[str, Path]):
-        """Copy a file's bytes to this path in the zip file."""
+    def _putpath(self, path: "ZipPath") -> None:
+        """Copy a file's bytes from another open `ZipPath`.
+
+        This method propagates compression type/level and comments.
+        """
         if "r" in self.root.mode:  # type: ignore
             raise IOError("Cannot write a file in read ('r') mode")
+        try:
+            info = path._zipfile.getinfo(path.at)
+        except KeyError:
+            raise FileNotFoundError(f"Source file not found: {path}")
+        if info.is_dir():
+            raise IsADirectoryError(f"Source is not a file: {path}")
+        with path.open("rb") as handle:
+            with self.open(
+                "wb",
+                compression=info.compress_type,
+                level=info._compresslevel,  # type: ignore[attr-defined]
+                comment=info.comment,
+            ) as new_handle:
+                shutil.copyfileobj(handle, new_handle)
+
+    def putfile(self, path: Union[str, Path, "ZipPath"]) -> None:
+        """Copy a file's bytes to this path in the zip file.
+
+        If a `ZipPath`, then compression type+level and comments are propagated.
+        """
+        if "r" in self.root.mode:  # type: ignore
+            raise IOError("Cannot write a file in read ('r') mode")
+
+        if isinstance(path, ZipPath):
+            self._putpath(path)
+            return
 
         path = cast(Path, Path(path))
         if not path.exists():
