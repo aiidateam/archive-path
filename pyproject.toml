@@ -21,7 +21,7 @@ classifiers = [
 ]
 keywords = "archive zip tar pathlib"
 
-requires-python=">=3.6"
+requires-python=">3.6"
 
 [tool.flit.metadata.requires-extra]
 test = [
