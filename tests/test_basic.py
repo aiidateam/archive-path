@@ -247,3 +247,21 @@ def test_zip_mkdir(tmp_path):
     folder = tmp_path / "extracted" / "folder"
     assert folder.exists()
     assert folder.is_dir()
+
+
+def test_putfile_zip(tmp_path):
+    """Test copying a file from one zip file to another."""
+    with ZipPath(tmp_path / "test.zip", mode="w") as path:
+        with path.joinpath("name").open(
+            "wb", compression=zipfile.ZIP_DEFLATED, level=3, comment=b"comment"
+        ) as handle:
+            handle.write(b"test")
+    with ZipPath(tmp_path / "test.zip", mode="r") as path:
+        with ZipPath(
+            tmp_path / "test2.zip", mode="w", compression=zipfile.ZIP_STORED
+        ) as new_path:
+            new_path.joinpath("name").putfile(path.joinpath("name"))
+    with zipfile.ZipFile(tmp_path / "test.zip", mode="r") as handle:
+        info = handle.getinfo("name")
+        assert info.compress_type == zipfile.ZIP_DEFLATED
+        assert info.comment == b"comment"
