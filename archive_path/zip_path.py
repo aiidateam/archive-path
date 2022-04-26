@@ -278,6 +278,7 @@ class ZipPath:
         compression: Union[NotSetType, int] = NOTSET,
         level: Union[NotSetType, int] = NOTSET,
         comment: Union[NotSetType, bytes] = NOTSET,
+        file_size: Union[NotSetType, int] = NOTSET,
     ):
         """Open the file pointed by this path and return a file object.
 
@@ -291,6 +292,8 @@ class ZipPath:
                 When using ZIP_DEFLATED integers 0 through 9 are accepted.
                 When using ZIP_BZIP2 integers 1 through 9 are accepted.
         :param comment: A binary comment, stored in the central directory
+        :param filesize: The file size in bytes that is intended to be written.
+            If greater than the ZIP64 limit (~2 GiB), then this extension will be used.
         """
         # zip file open misleading signals 'r', 'w', when actually they are byte mode
         zinfo: Union[str, zipfile.ZipInfo]
@@ -304,6 +307,8 @@ class ZipPath:
             )
             if comment is not NOTSET:
                 zinfo.comment = comment
+            if file_size is not NOTSET:
+                zinfo.file_size = file_size
         elif mode == "rb":
             zinfo = self.at
             try:
@@ -414,7 +419,7 @@ class ZipPath:
     def _putpath(self, path: "ZipPath") -> None:
         """Copy a file's bytes from another open `ZipPath`.
 
-        This method propagates compression type/level and comments.
+        This method propagates compression type/level, comments, and file_size.
         """
         if "r" in self.root.mode:  # type: ignore
             raise IOError("Cannot write a file in read ('r') mode")
@@ -430,6 +435,7 @@ class ZipPath:
                 compression=info.compress_type,
                 level=info._compresslevel,  # type: ignore[attr-defined]
                 comment=info.comment,
+                file_size=getattr(info, "file_size", NOTSET),
             ) as new_handle:
                 shutil.copyfileobj(handle, new_handle)
 
