@@ -30,6 +30,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Sequence,
     Set,
@@ -54,7 +55,7 @@ __all__ = (
 )
 
 NOTSET = ()
-NotSetType = Any  # once python 3.7 dropped: Literal[NOTSET]
+NotSetType = Any
 
 
 class ZipPath:
@@ -91,7 +92,7 @@ class ZipPath:
         self,
         path: Union[str, Path, "ZipPath"],
         *,
-        mode: str = "r",
+        mode: Literal["r", "w", "x", "a"] = "r",
         at: str = "",  # pylint: disable=invalid-name
         allow_zip64: bool = True,
         compression: int = zipfile.ZIP_DEFLATED,
@@ -273,11 +274,12 @@ class ZipPath:
     @contextmanager  # noqa: A003
     def open(  # noqa: A003
         self,
-        mode: str = "rb",
+        mode: Literal["rb", "wb"] = "rb",
         *,
         compression: Union[NotSetType, int] = NOTSET,
         level: Union[NotSetType, int] = NOTSET,
         comment: Union[NotSetType, bytes] = NOTSET,
+        file_size: Union[NotSetType, int] = NOTSET,
     ):
         """Open the file pointed by this path and return a file object.
 
@@ -291,6 +293,8 @@ class ZipPath:
                 When using ZIP_DEFLATED integers 0 through 9 are accepted.
                 When using ZIP_BZIP2 integers 1 through 9 are accepted.
         :param comment: A binary comment, stored in the central directory
+        :param filesize: The file size in bytes that is intended to be written.
+            If greater than the ZIP64 limit (~2 GiB), then this extension will be used.
         """
         # zip file open misleading signals 'r', 'w', when actually they are byte mode
         zinfo: Union[str, zipfile.ZipInfo]
@@ -304,6 +308,8 @@ class ZipPath:
             )
             if comment is not NOTSET:
                 zinfo.comment = comment
+            if file_size is not NOTSET:
+                zinfo.file_size = file_size
         elif mode == "rb":
             zinfo = self.at
             try:
@@ -312,7 +318,8 @@ class ZipPath:
                 raise FileNotFoundError(self.at)
         else:
             raise ValueError('open() requires mode "rb" or "wb"')
-        with self.root.open(zinfo, mode=mode[0]) as handle:
+        zipmode: Literal["r", "w"] = mode[0]  # type: ignore
+        with self.root.open(zinfo, mode=zipmode) as handle:
             yield handle
 
     def _write(self, content: Union[str, bytes]):
@@ -414,7 +421,7 @@ class ZipPath:
     def _putpath(self, path: "ZipPath") -> None:
         """Copy a file's bytes from another open `ZipPath`.
 
-        This method propagates compression type/level and comments.
+        This method propagates compression type/level, comments, and file_size.
         """
         if "r" in self.root.mode:  # type: ignore
             raise IOError("Cannot write a file in read ('r') mode")
@@ -430,6 +437,7 @@ class ZipPath:
                 compression=info.compress_type,
                 level=info._compresslevel,  # type: ignore[attr-defined]
                 comment=info.comment,
+                file_size=getattr(info, "file_size", NOTSET),
             ) as new_handle:
                 shutil.copyfileobj(handle, new_handle)
 
@@ -682,7 +690,7 @@ class ZipFileExtra(zipfile.ZipFile):
     def __init__(  # noqa: C901
         self,
         file: Union[str, Path, IO],
-        mode: str = "r",
+        mode: Literal["r", "w", "x", "a"] = "r",
         compression: int = zipfile.ZIP_STORED,
         allowZip64: bool = True,
         compresslevel: Optional[int] = None,
@@ -727,7 +735,7 @@ class ZipFileExtra(zipfile.ZipFile):
         self.filelist: List[zipfile.ZipInfo] = FileList(self.NameToInfo, info_order)  # type: ignore
         self.compression: int = compression  # Method of compression
         self.compresslevel: Optional[int] = compresslevel
-        self.mode: str = mode
+        self.mode = mode
         self.pwd: Optional[str] = None
         self._comment: bytes = b""
         self._strict_timestamps: bool = strict_timestamps
@@ -765,7 +773,7 @@ class ZipFileExtra(zipfile.ZipFile):
         else:
             self._filePassed = 1
             self.fp = cast(IO, file)
-            self.filename = getattr(file, "name", None)
+            self.filename = getattr(file, "name", None)  # type: ignore
         self._fileRefCnt = 1
         self._lock = threading.RLock()
         self._seekable = True
