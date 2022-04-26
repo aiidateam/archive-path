@@ -1,5 +1,11 @@
 # Change Log
 
+## v0.4.0 - 2022-04-26
+
+- ⬆️ UPGRADE: Drop Python 3.7 support
+- 👌 IMPROVE: Allow `file_size` to be passed to `ZipPath.open`.
+  This is used by `zipfile.open`, to compute if the `ZIP64` extension is required when writing
+
 ## v0.3.6 - 2021-11-23
 
 ✨ NEW: Allow parsing `ZipPath` -> `ZipPath.putfile` (propagates compression type+level and comment)
