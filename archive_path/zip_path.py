@@ -280,6 +280,7 @@ class ZipPath:
         level: Union[NotSetType, int] = NOTSET,
         comment: Union[NotSetType, bytes] = NOTSET,
         file_size: Union[NotSetType, int] = NOTSET,
+        force_zip64: bool = False,
     ):
         """Open the file pointed by this path and return a file object.
 
@@ -293,8 +294,9 @@ class ZipPath:
                 When using ZIP_DEFLATED integers 0 through 9 are accepted.
                 When using ZIP_BZIP2 integers 1 through 9 are accepted.
         :param comment: A binary comment, stored in the central directory
-        :param filesize: The file size in bytes that is intended to be written.
+        :param file_size: The file size in bytes that is intended to be written.
             If greater than the ZIP64 limit (~2 GiB), then this extension will be used.
+        :param force_zip64: Use the ZIP64 format, irrespective of file size
         """
         # zip file open misleading signals 'r', 'w', when actually they are byte mode
         zinfo: Union[str, zipfile.ZipInfo]
@@ -319,7 +321,7 @@ class ZipPath:
         else:
             raise ValueError('open() requires mode "rb" or "wb"')
         zipmode: Literal["r", "w"] = mode[0]  # type: ignore
-        with self.root.open(zinfo, mode=zipmode) as handle:
+        with self.root.open(zinfo, mode=zipmode, force_zip64=force_zip64) as handle:
             yield handle
 
     def _write(self, content: Union[str, bytes]):
