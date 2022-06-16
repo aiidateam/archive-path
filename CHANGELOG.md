@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.4.1 - 2022-06-16
+
+- 👌 IMPROVE: Add `force_zip64` option to `ZipPath.open`
+
 ## v0.4.0 - 2022-04-26
 
 - ⬆️ UPGRADE: Drop Python 3.7 support
