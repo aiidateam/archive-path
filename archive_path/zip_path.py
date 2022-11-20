@@ -698,6 +698,7 @@ class ZipFileExtra(zipfile.ZipFile):
         compresslevel: Optional[int] = None,
         *,
         strict_timestamps: bool = True,
+        metadata_encoding: Optional[str] = None,
         name_to_info: Optional[abc.MutableMapping] = None,
         info_order: Sequence[str] = (),
     ):
@@ -714,7 +715,8 @@ class ZipFileExtra(zipfile.ZipFile):
         :param allowZip64: If True, zipfile will create ZIP files that use the ZIP64 extensions,
             when the zipfile is larger than 4 GiB
         :param strict_timestamps: when set to False, allows to zip files older than 1980-01-01
-
+        :param metadata_encoding: Specify member name encoding for reading metadata in the zipfile's
+            directory and file headers.
         :param name_to_info: The dictionary for storing mappings of filename -> ``ZipInfo``,
             if ``None``, defaults to ``{}``
         :param info_order: list of file names (if present) to write first to the central directory
@@ -741,6 +743,7 @@ class ZipFileExtra(zipfile.ZipFile):
         self.pwd: Optional[str] = None
         self._comment: bytes = b""
         self._strict_timestamps: bool = strict_timestamps
+        self.metadata_encoding = metadata_encoding
 
         self.filename: str
         self._filePassed: int
