@@ -1,5 +1,10 @@
 # Change Log
 
+## v0.4.2 - 2022-11-30
+
+- ⬆️ UPGRADE: Add support for Python 3.11
+- 🧪 TESTS: Change `flake8` URL from gitlab to github
+
 ## v0.4.1 - 2022-06-16
 
 - 👌 IMPROVE: Add `force_zip64` option to `ZipPath.open`
